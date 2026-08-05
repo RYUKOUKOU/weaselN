@@ -299,6 +299,9 @@ program_files:
   WriteRegStr HKLM "${REG_UNINST_KEY}" "Publisher" "式恕堂"
   WriteRegDWORD HKLM "${REG_UNINST_KEY}" "NoModify" 1
   WriteRegDWORD HKLM "${REG_UNINST_KEY}" "NoRepair" 1
+  ; Keep uninstall metadata for maintenance, but hide this managed IME from
+  ; Windows Settings > Apps > Installed apps.
+  WriteRegDWORD HKLM "${REG_UNINST_KEY}" "SystemComponent" 1
   WriteUninstaller "$INSTDIR\uninstall.exe"
 
   ; run as user...

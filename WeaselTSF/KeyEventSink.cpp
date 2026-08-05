@@ -7,6 +7,27 @@
 static weasel::KeyEvent prevKeyEvent;
 static BOOL prevfEaten = FALSE;
 static int keyCountToSimulate = 0;
+static int unicodeKeyEventsToSimulate = 0;
+
+namespace {
+bool HasSystemModifier(const BYTE* keyState) {
+  const BYTE keyDown = 0x80;
+  return (keyState[VK_CONTROL] & keyDown) || (keyState[VK_MENU] & keyDown) ||
+         (keyState[VK_LWIN] & keyDown) || (keyState[VK_RWIN] & keyDown);
+}
+
+void SendUnicodeCharacter(WCHAR character) {
+  INPUT inputs[2] = {};
+  inputs[0].type = INPUT_KEYBOARD;
+  inputs[0].ki.wScan = character;
+  inputs[0].ki.dwFlags = KEYEVENTF_UNICODE;
+  inputs[1] = inputs[0];
+  inputs[1].ki.dwFlags |= KEYEVENTF_KEYUP;
+  unicodeKeyEventsToSimulate = 2;
+  if (::SendInput(2, inputs, sizeof(INPUT)) != 2)
+    unicodeKeyEventsToSimulate = 0;
+}
+}  // namespace
 
 void WeaselTSF::_ProcessKeyEvent(WPARAM wParam, LPARAM lParam, BOOL* pfEaten) {
   // when _IsKeyboardDisabled don't eat the key,
@@ -23,6 +44,11 @@ void WeaselTSF::_ProcessKeyEvent(WPARAM wParam, LPARAM lParam, BOOL* pfEaten) {
   }
   weasel::KeyEvent ke;
   GetKeyboardState(_lpbKeyState);
+  if (wParam == VK_PACKET && unicodeKeyEventsToSimulate > 0) {
+    unicodeKeyEventsToSimulate--;
+    *pfEaten = FALSE;
+    return;
+  }
   if (!ConvertKeyEvent(static_cast<UINT>(wParam), lParam, _lpbKeyState, ke)) {
     /* Unknown key event */
     *pfEaten = FALSE;
@@ -36,6 +62,20 @@ void WeaselTSF::_ProcessKeyEvent(WPARAM wParam, LPARAM lParam, BOOL* pfEaten) {
     }
     if (!keyCountToSimulate)
       *pfEaten = (BOOL)m_client.ProcessKeyEvent(ke);
+
+    if (!*pfEaten && _status.ascii_mode &&
+        IsJapaneseKeyboardLayoutConfigured() &&
+        !HasSystemModifier(_lpbKeyState) && ke.keycode >= 0x20 &&
+        ke.keycode < 0xff00) {
+      WCHAR windowsCharacter = 0;
+      if (ConvertKeyToUnicode(static_cast<UINT>(wParam), lParam, _lpbKeyState,
+                              GetKeyboardLayout(0), windowsCharacter) &&
+          windowsCharacter != static_cast<WCHAR>(ke.keycode)) {
+        *pfEaten = TRUE;
+        if (!(ke.mask & ibus::RELEASE_MASK))
+          SendUnicodeCharacter(static_cast<WCHAR>(ke.keycode));
+      }
+    }
 
     if (ke.keycode == ibus::Caps_Lock) {
       if (prevKeyEvent.keycode == ibus::Caps_Lock && prevfEaten == TRUE &&

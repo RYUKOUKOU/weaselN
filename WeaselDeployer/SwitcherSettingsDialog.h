@@ -25,6 +25,8 @@ class SwitcherSettingsDialog : public CDialogImpl<SwitcherSettingsDialog> {
 
   void Populate();
   void ShowDetails(RimeSchemaInfo* info);
+  void LoadKeyboardLayout();
+  void SaveKeyboardLayout();
 
   RimeLeversApi* api_;
   RimeSwitcherSettings* settings_;
@@ -34,4 +36,5 @@ class SwitcherSettingsDialog : public CDialogImpl<SwitcherSettingsDialog> {
   CCheckListViewCtrl schema_list_;
   CStatic description_;
   CEdit hotkeys_;
+  CComboBox keyboard_layout_;
 };

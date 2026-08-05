@@ -1,5 +1,50 @@
-﻿#include "stdafx.h"
+#include "stdafx.h"
 #include <KeyEvent.h>
+
+namespace {
+HKL GetConfiguredKeyboardLayout() {
+  DWORD layout = 0;
+  DWORD size = sizeof(layout);
+  if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\Rime\\Weasel",
+                   L"KeyboardLayout", RRF_RT_REG_DWORD, nullptr, &layout,
+                   &size) == ERROR_SUCCESS &&
+      layout == 1) {
+    static HKL japanese_layout =
+        LoadKeyboardLayoutW(L"00000411", KLF_NOTELLSHELL);
+    if (japanese_layout)
+      return japanese_layout;
+  }
+  return GetKeyboardLayout(0);
+}
+}  // namespace
+
+bool IsJapaneseKeyboardLayoutConfigured() {
+  DWORD layout = 0;
+  DWORD size = sizeof(layout);
+  return RegGetValueW(HKEY_CURRENT_USER, L"Software\\Rime\\Weasel",
+                      L"KeyboardLayout", RRF_RT_REG_DWORD, nullptr, &layout,
+                      &size) == ERROR_SUCCESS &&
+         layout == 1;
+}
+
+bool ConvertKeyToUnicode(UINT vkey,
+                         KeyInfo kinfo,
+                         const LPBYTE keyState,
+                         HKL keyboardLayout,
+                         WCHAR& result) {
+  const int buf_len = 8;
+  WCHAR buf[buf_len] = {};
+  BYTE table[256];
+  memcpy(table, keyState, sizeof(table));
+  table[VK_CONTROL] = 0;
+  table[VK_MENU] = 0;
+  int ret =
+      ToUnicodeEx(vkey, UINT(kinfo), table, buf, buf_len, 0, keyboardLayout);
+  if (ret != 1)
+    return false;
+  result = buf[0];
+  return true;
+}
 
 bool ConvertKeyEvent(UINT vkey,
                      KeyInfo kinfo,
@@ -41,16 +86,10 @@ bool ConvertKeyEvent(UINT vkey,
     return true;
   }
 
-  const int buf_len = 8;
-  static WCHAR buf[buf_len];
-  static BYTE table[256];
-  // 清除Ctrl、Alt鍵狀態，以令ToUnicodeEx()返回字符
-  memcpy(table, keyState, sizeof(table));
-  table[VK_CONTROL] = 0;
-  table[VK_MENU] = 0;
-  int ret = ToUnicodeEx(vkey, UINT(kinfo), table, buf, buf_len, 0, NULL);
-  if (ret == 1) {
-    result.keycode = UINT(buf[0]);
+  WCHAR character = 0;
+  if (ConvertKeyToUnicode(vkey, kinfo, keyState, GetConfiguredKeyboardLayout(),
+                          character)) {
+    result.keycode = UINT(character);
     return true;
   }
 

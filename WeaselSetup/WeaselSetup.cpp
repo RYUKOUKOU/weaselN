@@ -166,12 +166,8 @@ static int Run(LPTSTR lpCmdLine) {
           L"/ls            - Set Weasel language to Simplified Chinese\n"
           L"/lt            - Set Weasel language to Traditional Chinese\n"
           L"/le            - Set Weasel language to English\n"
-          L"/eu            - Enable automatic update check\n"
-          L"/du            - Disable automatic update check\n"
           L"/toggleime     - Toggle IME on open/close(ctrl+space)\n"
           L"/toggleascii   - Toggle ASCII on open/close(ctrl+space)\n"
-          L"/testing       - Set update channel to testing\n"
-          L"/release       - Set update channel to release\n"
           L"/userdir:<dir> - Set user directory\n",
           L"WeaselSetup", MB_ICONINFORMATION | MB_OK);
     }
@@ -201,15 +197,6 @@ static int Run(LPTSTR lpCmdLine) {
                           L"Language", L"eng", REG_SZ);
   }
 
-  if (!wcscmp(L"/eu", lpCmdLine)) {
-    return SetRegKeyValue(HKEY_CURRENT_USER, L"Software\\Rime\\weasel\\Updates",
-                          L"CheckForUpdates", L"1", REG_SZ);
-  }
-  if (!wcscmp(L"/du", lpCmdLine)) {
-    return SetRegKeyValue(HKEY_CURRENT_USER, L"Software\\Rime\\weasel\\Updates",
-                          L"CheckForUpdates", L"0", REG_SZ);
-  }
-
   if (!wcscmp(L"/toggleime", lpCmdLine)) {
     return SetRegKeyValue(HKEY_CURRENT_USER, L"Software\\Rime\\weasel",
                           L"ToggleImeOnOpenClose", L"yes", REG_SZ);
@@ -218,15 +205,6 @@ static int Run(LPTSTR lpCmdLine) {
     return SetRegKeyValue(HKEY_CURRENT_USER, L"Software\\Rime\\weasel",
                           L"ToggleImeOnOpenClose", L"no", REG_SZ);
   }
-  if (!wcscmp(L"/testing", lpCmdLine)) {
-    return SetRegKeyValue(HKEY_CURRENT_USER, L"Software\\Rime\\weasel",
-                          L"UpdateChannel", L"testing", REG_SZ);
-  }
-  if (!wcscmp(L"/release", lpCmdLine)) {
-    return SetRegKeyValue(HKEY_CURRENT_USER, L"Software\\Rime\\weasel",
-                          L"UpdateChannel", L"release", REG_SZ);
-  }
-
   if (!IsProcAdmin()) {
     return RestartAsAdmin(lpCmdLine);
   }

@@ -31,6 +31,12 @@ bool ConvertKeyEvent(UINT vkey,
                      KeyInfo kinfo,
                      const LPBYTE keyState,
                      weasel::KeyEvent& result);
+bool IsJapaneseKeyboardLayoutConfigured();
+bool ConvertKeyToUnicode(UINT vkey,
+                         KeyInfo kinfo,
+                         const LPBYTE keyState,
+                         HKL keyboardLayout,
+                         WCHAR& result);
 
 namespace ibus {
 // keycodes

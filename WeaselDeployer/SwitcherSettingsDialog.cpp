@@ -1,4 +1,4 @@
-﻿#include "stdafx.h"
+#include "stdafx.h"
 #include "SwitcherSettingsDialog.h"
 #include "Configurator.h"
 #include <algorithm>
@@ -6,6 +6,11 @@
 #include <rime_levers_api.h>
 #include <WeaselUtility.h>
 #include "WeaselDeployer.h"
+
+namespace {
+constexpr wchar_t kWeaselRegKey[] = L"Software\\Rime\\Weasel";
+constexpr wchar_t kKeyboardLayoutValue[] = L"KeyboardLayout";
+}  // namespace
 
 SwitcherSettingsDialog::SwitcherSettingsDialog(RimeSwitcherSettings* settings)
     : settings_(settings), loaded_(false), modified_(false) {
@@ -61,6 +66,28 @@ void SwitcherSettingsDialog::Populate() {
   modified_ = false;
 }
 
+void SwitcherSettingsDialog::LoadKeyboardLayout() {
+  DWORD layout = 0;
+  DWORD size = sizeof(layout);
+  if (RegGetValueW(HKEY_CURRENT_USER, kWeaselRegKey, kKeyboardLayoutValue,
+                   RRF_RT_REG_DWORD, nullptr, &layout, &size) != ERROR_SUCCESS) {
+    layout = 0;
+  }
+  keyboard_layout_.SetCurSel(layout == 1 ? 1 : 0);
+}
+
+void SwitcherSettingsDialog::SaveKeyboardLayout() {
+  HKEY key = nullptr;
+  if (RegCreateKeyExW(HKEY_CURRENT_USER, kWeaselRegKey, 0, nullptr, 0,
+                      KEY_SET_VALUE, nullptr, &key, nullptr) != ERROR_SUCCESS) {
+    return;
+  }
+  DWORD layout = keyboard_layout_.GetCurSel() == 1 ? 1 : 0;
+  RegSetValueExW(key, kKeyboardLayoutValue, 0, REG_DWORD,
+                 reinterpret_cast<const BYTE*>(&layout), sizeof(layout));
+  RegCloseKey(key);
+}
+
 void SwitcherSettingsDialog::ShowDetails(RimeSchemaInfo* info) {
   if (!info)
     return;
@@ -95,6 +122,11 @@ LRESULT SwitcherSettingsDialog::OnInitDialog(UINT, WPARAM, LPARAM, BOOL&) {
   hotkeys_.Attach(GetDlgItem(IDC_HOTKEYS));
   hotkeys_.EnableWindow(FALSE);
 
+  keyboard_layout_.Attach(GetDlgItem(IDC_KEYBOARD_LAYOUT));
+  keyboard_layout_.AddString(L"跟随 Windows");
+  keyboard_layout_.AddString(L"日语键盘 (106/109)");
+  LoadKeyboardLayout();
+
   Populate();
 
   CenterWindow();
@@ -108,6 +140,7 @@ LRESULT SwitcherSettingsDialog::OnClose(UINT, WPARAM, LPARAM, BOOL&) {
 }
 
 LRESULT SwitcherSettingsDialog::OnOK(WORD, WORD code, HWND, BOOL&) {
+  SaveKeyboardLayout();
   if (modified_ && settings_ && schema_list_.GetItemCount() != 0) {
     const char** selection = new const char*[schema_list_.GetItemCount()];
     int count = 0;
